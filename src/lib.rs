@@ -69,3 +69,14 @@ impl<T: Copy, R: ::io::Read<T>, A: Alloc> ::io::Read<T> for Read<T, R, A> {
          (l, self.r.size_hint().1.and_then(|n| usize::checked_add(l, n)))
     }
 }
+
+/// Pass-thru
+impl<T: Copy, R: ::io::Write<T>, A: Alloc> ::io::Write<T> for Read<T, R, A> {
+    type Err = R::Err;
+    #[inline]
+    fn write(&mut self, buf: &[T]) -> Result<usize, Self::Err> { self.r.write(buf) }
+    #[inline]
+    fn writev(&mut self, buf: &[&[T]]) -> Result<usize, Self::Err> { self.r.writev(buf) }
+    #[inline]
+    fn flush(&mut self) -> Result<(), Self::Err> { self.r.flush() }
+}
