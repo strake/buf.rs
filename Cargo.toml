@@ -8,5 +8,6 @@ repository = "https://github.com/strake/buf.rs"
 
 [dependencies]
 containers = { version = "0.8", default-features = false }
+either = { version = "1.5", default-features = false }
 i-o = "0.4"
 loca = "0.6"

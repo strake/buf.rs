@@ -1,11 +1,14 @@
 #![no_std]
 
 extern crate containers;
+extern crate either;
 extern crate io;
 extern crate loca;
 
 use containers::collections::{RawVec, Vec};
 use core::cmp;
+use either::{Either, Left, Right};
+use io::EndOfFile;
 use loca::Alloc;
 
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -105,27 +108,69 @@ impl<T, W, A: Alloc> Write<T, W, A> {
     pub fn as_mut(&mut self) -> &mut W { &mut self.w }
 }
 
-impl<T: Copy, W: ::io::Write<T>, A: Alloc> ::io::Write<T> for Write<T, W, A> {
-    type Err = W::Err;
+impl<T: Copy, W: ::io::Write<T>, A: Alloc> Write<T, W, A> {
     #[inline]
-    fn flush(&mut self) -> Result<(), Self::Err> {
-        while self.buf.len() > 0 {
-            let n = self.w.write(&self.buf)?;
-            self.buf.drain(0..n);
-        }
-        self.w.flush()
+    pub fn flush_buffer(&mut self) -> Result<(), Either<<W as ::io::Write<T>>::Err, EndOfFile>> {
+        let mut k = 0;
+        let r = loop {
+            if k >= self.buf.len() { break Ok(()); }
+            match self.w.write(&self.buf[k..]) {
+                Ok(0) => break Err(Right(EndOfFile)),
+                Ok(n) => k += n,
+                Err(e) => break Err(Left(e)),
+            }
+        };
+        self.buf.drain(0..k);
+        r
     }
 
     #[inline]
-    fn write(&mut self, mut buf: &[T]) -> Result<usize, Self::Err> {
+    fn flush_buffer_and(&mut self, buf: &[T]) -> Result<usize, Either<<W as ::io::Write<T>>::Err, EndOfFile>> {
+        let mut k = 0;
+        let r = loop {
+            if k >= self.buf.len() { break Ok(()); }
+            match self.w.writev(&[&self.buf[k..], buf]) {
+                Ok(0) => break Err(Right(EndOfFile)),
+                Ok(n) => k += n,
+                Err(e) => break Err(Left(e)),
+            }
+        };
+        let l = self.buf.len();
+        self.buf.drain(0..::core::cmp::min(k, l));
+        r.map(|()| k.saturating_sub(l))
+    }
+
+    #[inline]
+    fn write_buffer_and(&mut self, buf: &[T]) -> Result<usize, Either<<W as ::io::Write<T>>::Err, EndOfFile>> {
+        let n = self.w.writev(&[&self.buf[..], buf]).map_err(Left)?;
+        if 0 == n { return Err(Right(EndOfFile)); }
+        let l = self.buf.len();
+        self.buf.drain(0..::core::cmp::min(n, l));
+        Ok(n.saturating_sub(l))
+    }
+}
+
+impl<T: Copy, W: ::io::Write<T>, A: Alloc> ::io::Write<T> for Write<T, W, A> {
+    type Err = Either<W::Err, EndOfFile>;
+    #[inline]
+    fn flush(&mut self) -> Result<(), Self::Err> {
+        self.flush_buffer()?;
+        self.w.flush().map_err(Left)
+    }
+
+    #[inline]
+    fn write(&mut self, buf: &[T]) -> Result<usize, Self::Err> {
+        if buf.len() > self.buf.capacity() {
+            return self.flush_buffer_and(buf);
+        }
+
         loop {
             if self.buf.capacity() - self.buf.len() >= buf.len() {
                 self.buf.append_slice(buf);
                 return Ok(buf.len());
             }
-
-            let n = self.w.write(buf)?;
-            buf = &buf[n..];
+            let n = self.write_buffer_and(buf)?;
+            if n > 0 { return Ok(n); }
         }
     }
 }
