@@ -80,3 +80,71 @@ impl<T: Copy, R: ::io::Write<T>, A: Alloc> ::io::Write<T> for Read<T, R, A> {
     #[inline]
     fn flush(&mut self) -> Result<(), Self::Err> { self.r.flush() }
 }
+
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct Write<T, W, A: Alloc> {
+    w: W,
+    buf: Vec<T, A>,
+}
+
+impl<T, W, A: Alloc> Write<T, W, A> {
+    #[inline]
+    pub fn with_capacity_in(a: A, w: W, cap: usize) -> Option<Self> {
+        Vec::with_capacity_in(a, cap).map(|buf| Write { w, buf })
+    }
+
+    #[inline]
+    pub fn from_raw(w: W, raw: RawVec<T, A>) -> Self {
+        Write { w, buf: Vec::from_raw(raw) }
+    }
+
+    #[inline]
+    pub fn as_ref(&self) -> &W { &self.w }
+
+    #[inline]
+    pub fn as_mut(&mut self) -> &mut W { &mut self.w }
+}
+
+impl<T: Copy, W: ::io::Write<T>, A: Alloc> ::io::Write<T> for Write<T, W, A> {
+    type Err = W::Err;
+    #[inline]
+    fn flush(&mut self) -> Result<(), Self::Err> {
+        while self.buf.len() > 0 {
+            let n = self.w.write(&self.buf)?;
+            self.buf.drain(0..n);
+        }
+        self.w.flush()
+    }
+
+    #[inline]
+    fn write(&mut self, mut buf: &[T]) -> Result<usize, Self::Err> {
+        loop {
+            if self.buf.capacity() - self.buf.len() >= buf.len() {
+                self.buf.append_slice(buf);
+                return Ok(buf.len());
+            }
+
+            let n = self.w.write(buf)?;
+            buf = &buf[n..];
+        }
+    }
+}
+
+impl<W: ::io::Write<u8>, A: Alloc> ::core::fmt::Write for Write<u8, W, A> {
+    #[inline]
+    fn write_str(&mut self, s: &str) -> ::core::fmt::Result {
+        use io::Write as _Write;
+        self.write(s.as_bytes()).map(|_| ()).map_err(|_| ::core::fmt::Error)
+    }
+}
+
+/// Pass-thru
+impl<T: Copy, W: ::io::Read<T>, A: Alloc> ::io::Read<T> for Write<T, W, A> {
+    type Err = W::Err;
+    #[inline]
+    fn read(&mut self, buf: &mut [T]) -> Result<usize, Self::Err> { self.w.read(buf) }
+    #[inline]
+    fn readv(&mut self, bufs: &mut [&mut [T]]) -> Result<usize, Self::Err> { self.w.readv(bufs) }
+    #[inline]
+    fn size_hint(&self) -> (usize, Option<usize>) { self.w.size_hint() }
+}
