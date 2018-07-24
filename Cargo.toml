@@ -7,6 +7,6 @@ license = "MIT OR Apache-2.0"
 repository = "https://github.com/strake/buf.rs"
 
 [dependencies]
-containers = "0.8"
+containers = { version = "0.8", default-features = false }
 i-o = "0.4"
 loca = "0.6"
