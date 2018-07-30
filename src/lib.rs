@@ -1,5 +1,7 @@
 #![no_std]
 
+#![feature(const_fn)]
+
 extern crate containers;
 extern crate either;
 extern crate io;
@@ -32,12 +34,12 @@ impl<T, R, A: Alloc> Read<T, R, A> {
     }
 
     #[inline]
-    pub fn from_raw(r: R, raw: RawVec<T, A>) -> Self {
+    pub const fn from_raw(r: R, raw: RawVec<T, A>) -> Self {
         Read { r, buf: Vec::from_raw(raw), k: 0 }
     }
 
     #[inline]
-    pub fn as_ref(&self) -> &R { &self.r }
+    pub const fn as_ref(&self) -> &R { &self.r }
 
     #[inline]
     pub fn as_mut(&mut self) -> &mut R { &mut self.r }
@@ -97,12 +99,12 @@ impl<T, W, A: Alloc> Write<T, W, A> {
     }
 
     #[inline]
-    pub fn from_raw(w: W, raw: RawVec<T, A>) -> Self {
+    pub const fn from_raw(w: W, raw: RawVec<T, A>) -> Self {
         Write { w, buf: Vec::from_raw(raw) }
     }
 
     #[inline]
-    pub fn as_ref(&self) -> &W { &self.w }
+    pub const fn as_ref(&self) -> &W { &self.w }
 
     #[inline]
     pub fn as_mut(&mut self) -> &mut W { &mut self.w }
