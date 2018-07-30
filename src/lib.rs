@@ -61,7 +61,7 @@ impl<T: Copy, R: ::io::Read<T>, A: Alloc> ::io::Read<T> for Read<T, R, A> {
             }
         }
         let l = cmp::min(self.buf.len() - self.k, buf.len());
-        buf[0..l].copy_from_slice(&self.buf[0..l]);
+        buf[0..l].copy_from_slice(&self.buf[self.k..][0..l]);
         self.k += l;
         Ok(l)
     }
