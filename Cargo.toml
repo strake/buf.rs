@@ -1,6 +1,6 @@
 [package]
 name = "buf"
-version = "0.2.0"
+version = "0.2.1"
 authors = ["M Farkas-Dyck <strake888@gmail.com>"]
 description = "Read buffer"
 license = "MIT OR Apache-2.0"
