@@ -1,13 +1,13 @@
 [package]
 name = "buf"
-version = "0.2.1"
+version = "0.2.2"
 authors = ["M Farkas-Dyck <strake888@gmail.com>"]
 description = "Read buffer"
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/strake/buf.rs"
 
 [dependencies]
-containers = { version = "0.8", default-features = false }
+containers = { version = "0.9", default-features = false }
 either = { version = "1.5", default-features = false }
 i-o = "0.4"
-loca = "0.6"
+loca = "0.7"
